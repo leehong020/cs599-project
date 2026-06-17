@@ -1,109 +1,88 @@
 # 产品范围
 
-## 目的
+## 项目目的
 
-本项目是一套本地优先的 Gmail 与 Google Calendar AI 助理。它帮助用户撰写邮件、准备回复、总结邮件上下文、创建或修改日程、解析用户上传的文档，并通过自然对话协调这些动作。
+Mailflow Agent 是一个本地优先的 Gmail 与 Google Calendar AI 助理。它帮助用户通过自然语言撰写邮件、准备回复、搜索和总结邮件、创建或修改日程、解析上传文件，并在执行外部写操作前要求用户明确确认。
 
-系统在用户体验上应该像“聊天助理 + 卡片 + 选中上下文”，而不是一个显眼的工作流引擎。内部可以使用 `Work Item`、`Artifact`、`Proposal`、`Authorization` 和 `Field Evidence` 来保证高风险动作安全、可追踪、可恢复。
+系统面向课程项目和本地个人使用场景，核心价值是把 Gmail、Calendar、文件上下文和多轮聊天合并到一个可追踪、可恢复、可确认的 Agent 工作流中。
 
-## MVP 的白话解释
+## 方向
 
-MVP 是 `Minimum Viable Product`，可以理解为“最小可用版本”或“最小可验证版本”。
+方向一：Agentic AI 原生开发。
 
-它不是最终完整产品，也不是随便做一个演示页面。对本项目来说，MVP 的意思是：先做出一条能真实闭环、能被用户安全验证的核心路径。
-
-本项目的 MVP 闭环是：
-
-```text
-Google 登录
-→ 选择或上传邮件、日程、文件上下文
-→ 对话生成本地邮件草稿或日程草稿
-→ 缺字段时继续追问
-→ 展示 Proposal 确认卡片
-→ 用户明确确认
-→ 执行 Gmail 或 Calendar 写操作
-→ 保存执行记录，避免重复执行
-```
-
-因此，MVP 重点不是把所有功能都做完，而是把最关键、最危险、最能证明系统价值的链路做通。
-
-## MVP 用户
-
-- 本地运行应用的单个开发者。
-- 一个主要 Google 账号。
-- 少量用于演示、课程设计或毕业设计的测试用户。
-- 希望用助理方式处理邮件和日程，同时要求外部写操作前明确确认的用户。
+本项目不是简单调用单次 LLM，而是使用 LangGraph 组织多个 Agent 和工具，围绕邮件、日程、上下文、确认和执行形成完整链路。
 
 ## MVP 必须支持
 
 | 领域 | 范围 |
 |---|---|
-| Google OAuth | 登录、Token 加密存储、刷新、断开连接 |
-| User settings | 发件账号、署名、时区、默认日历、会议时长、工作时间、午休时间 |
-| Gmail read | 搜索邮件、读取邮件详情、读取线程、总结线程 |
-| Gmail local drafts | 新邮件、回复邮件、转发邮件、本地邮件 `Artifact` 修改 |
-| Gmail send | 通过 `Proposal + Authorization + Execution Service` 确认后发送 |
-| Calendar read | 列出事件、查询 `Freebusy`、冲突检查 |
-| Calendar local drafts | 创建日程草稿、修改日程草稿 |
-| Calendar write | 通过 `Proposal + Authorization + Execution Service` 确认后创建或更新 |
-| File upload | 解析用户主动上传的 PDF、DOCX、TXT、Markdown |
-| Selected context | 显式选中的邮件、日程、文件、文件片段、草稿或 Proposal 卡片 |
-| Conversation | 多轮聊天、追问、基于上下文修改 |
-| Safety | `Provenance`、完整性校验、策略保护、幂等执行 |
-| Persistence | SQLite 作为事实来源，Markdown 仅用于可读导出和 Prompt |
-| Frontend | 聊天流、Google 连接入口、Open Work Item 面板、草稿卡片、确认卡片、文件卡片、选中上下文栏 |
+| Google OAuth | 登录、回调、token 加密保存、刷新、断开连接 |
+| User settings | 发件账号、署名、联系人、时区、默认日历、默认会议时长 |
+| Gmail read | 搜索邮件、读取邮件详情、读取 thread |
+| Gmail local drafts | 新邮件、回复邮件、转发邮件、本地邮件草稿修改 |
+| Gmail send | 通过本地草稿、用户确认和执行服务发送邮件 |
+| Calendar read | 列出事件、查询 Freebusy、展示日程视图 |
+| Calendar local drafts | Assistant 创建、修改、删除日程前先形成本地草稿或确认对象 |
+| Calendar write | Assistant 经确认后执行；Calendar 页面手动按钮可直接创建、修改、删除 |
+| File upload | 解析用户主动上传的 txt、md、csv、json、log、xml、html、代码文件、docx、pdf |
+| Selected context | 使用用户显式选中的邮件、日程、文件、草稿或 Proposal 作为上下文 |
+| Conversation | 多轮聊天、追问、基于上下文修改草稿、普通聊天 |
+| Safety | Provenance、必填字段校验、Proposal、Authorization、幂等执行、日志脱敏 |
+| Persistence | SQLite 作为事实来源，Markdown 只用于提示词、说明和导出 |
+| Frontend | 聊天页、Gmail 页、Calendar 页、设置页、Google 连接、Proposal 确认卡片 |
 
-## MVP 暂不支持
+## MVP 不支持
 
 - Outlook 或 Exchange。
-- 多租户组织管理。
+- 企业多租户组织管理。
 - 企业多级审批。
 - Gmail Watch、Google Pub/Sub、Calendar Push Notification。
 - Redis、PostgreSQL、Celery、Kafka。
 - 向量数据库。
 - 自动扫描并解析邮箱中所有附件。
-- 批量归档。
-- 自动删除邮件。
 - 无人值守自动发送邮件。
 - 无人值守自动邀请外部参会人。
 
-## 草稿边界
+## 草稿与执行边界
 
-MVP 中邮件草稿和日程草稿都是本地 `Artifact`。
+Assistant 生成邮件或日程时，默认只写入本地 `Artifact`。本地草稿不等于已经写入 Gmail 或 Google Calendar。
 
-生成或修改草稿不得写入 Gmail 或 Google Calendar。创建或更新 Gmail Draft 属于外部写操作，必须经过 `Proposal + Authorization + Execution Service`。
-
-默认发送流程：
+邮件发送流程：
 
 ```text
-local email Artifact
-→ Proposal Item: send_email
-→ 用户确认当前 version 和 fingerprint
-→ Execution Service 创建或更新 Gmail Draft
-→ Execution Service 发送 Gmail Draft
-→ Action Event 记录外部执行结果
+local email draft
+-> Proposal Item: send_email
+-> 用户确认当前 version 和 fingerprint
+-> Execution Service 调用 Gmail API
+-> Action Event 记录执行结果
 ```
 
-如果后续版本增加“同步到 Gmail 草稿箱”，则 `create_gmail_draft` 和 `update_gmail_draft` 必须成为独立的 `Proposal Item` 动作类型。
+日程创建、修改和删除流程：
+
+```text
+local calendar draft 或 delete draft
+-> Proposal Item
+-> 用户确认当前 version 和 fingerprint
+-> Execution Service 调用 Google Calendar API
+-> Action Event 记录执行结果
+```
+
+Calendar 页面中的新建、保存修改、删除按钮是用户直接操作界面。用户点击按钮视为显式人工操作，可以直接写入 Google Calendar，但 Assistant 不能绕过确认流程调用这些能力。
 
 ## 文件上传边界
 
-用户可以显式上传文件。系统不自动发现或解析所有 Gmail 附件。
+用户可以显式上传文件。系统不自动发现或解析 Gmail 附件。
 
-MVP 支持格式：
+文件内容属于不可信上下文：
 
-```text
-.pdf
-.docx
-.txt
-.md
-```
-
-文件内容属于不可信上下文。它可以支持摘要、邮件、回复、日程准备，但文件里的指令不能覆盖系统安全规则。
+- 可以用于总结、起草邮件、准备回复、准备日程；
+- 字段在文件中明确出现时可以作为 evidence；
+- 文件中的指令不能覆盖系统规则；
+- 文件不能代替用户确认外部写操作。
 
 ## 选中上下文边界
 
-前端必须显式发送选中上下文。后端不得把“最近展示”或“当前聚焦”的对象当作权威目标。
+前端必须显式发送选中上下文。后端不能把“最近展示”或“当前焦点”对象当作权威目标。
 
 允许的选中上下文类型：
 
@@ -119,23 +98,14 @@ file_extraction
 file_span
 ```
 
-如果选中上下文和用户文本冲突，助理必须追问。
-
-## UX 原则
-
-- 向用户隐藏内部工作流复杂度。
-- 只展示人能理解的状态：需要补充、草稿已准备、等待确认、已完成。
-- 允许用户选中卡片或文件后自然表达需求。
-- 缺少多个字段时尽量一次合并追问。
-- 不要求用户记住任何 ID。
-- 确认卡片必须展示精确版本、可见内容和高风险字段。
-- 每一轮回复都应该给用户一个明确的下一步。
+如果选中上下文和用户文本冲突，Assistant 必须追问。
 
 ## 成功标准
 
-- 助理可以准备邮件，但不会写入 Gmail。
-- 用户确认当前 `Proposal` 之前，助理不能发送邮件。
-- 助理可以修改旧草稿，并让旧授权失效。
-- 助理可以把用户上传的 PDF 或 DOCX 作为可引用上下文。
-- 助理可以把选中的邮件或日程作为目标，不依赖猜测。
-- 关键字段缺失或歧义时，助理会追问而不是猜测。
+- 用户可以连接自己的 Google 账号。
+- 用户可以搜索和读取 Gmail。
+- 用户可以查看和手动管理 Calendar。
+- Assistant 可以生成邮件草稿，并在用户确认后发送。
+- Assistant 可以生成日程草稿，并在用户确认后创建、修改或删除日程。
+- Assistant 可以把上传文件和选中对象作为上下文，但不能让文件内容绕过安全规则。
+- 必填字段缺失或目标有歧义时，Assistant 会追问而不是猜测。
