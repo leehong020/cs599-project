@@ -36,21 +36,24 @@ cs599-project/
 
 ## 环境搭建
 
+以下命令默认从项目根目录 `cs599-project/` 执行。
+
 1. 依赖安装
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-.\.venv\Scripts\python -m pip install -e "src/backend[dev]"
+.\.venv\Scripts\python -m pip install -e ".\src\backend[dev]"
 
-Set-Location src/frontend
+Push-Location .\src\frontend
 npm install
+Pop-Location
 ```
 
 2. 环境变量配置
 
 ```powershell
-Copy-Item .env.example .env
+Copy-Item .\.env.example .\.env
 ```
 
 在 `.env` 中填写 LLM 和 Google OAuth 配置，不要硬编码 API Key。
@@ -111,14 +114,19 @@ JSON 文件格式通常如下：
 
 4. 启动步骤
 
+后端终端：
+
 ```powershell
-Set-Location src/backend
+.\.venv\Scripts\Activate.ps1
+Push-Location .\src\backend
 ..\..\.venv\Scripts\python -m alembic upgrade head
 ..\..\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
+前端终端：
+
 ```powershell
-Set-Location src/frontend
+Push-Location .\src\frontend
 npm run dev -- --port 5173
 ```
 
