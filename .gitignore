@@ -1,0 +1,35 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+pytest-cache-files-*/
+pytest_tmp_*/
+data_runtime_pytest_tmp/
+.pytest_tmp/
+.tmp/
+.mypy_cache/
+.ruff_cache/
+
+# 本地 AI IDE / 辅助工具工作区，不属于课程交付源码
+.agents/
+.superpowers/
+.claude/
+
+# 本地运行数据、数据库、日志、上传文件和导出文件
+data/
+*.sqlite3
+*.db
+
+src/backend/.env
+src/backend/.venv/
+src/backend/dist/
+src/backend/*.egg-info/
+
+src/frontend/node_modules/
+src/frontend/dist/
+src/frontend/.env
+src/frontend/.vite/
+
+# Google OAuth JSON 凭据文件（从 Google Cloud Console 下载）
+google_oauth.json
