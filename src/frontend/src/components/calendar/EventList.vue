@@ -20,11 +20,22 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const filter = ref<"all" | "today" | "week">("all");
 
+function formatDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function eventDateStr(dateTime?: string): string {
+  if (!dateTime) return "未知日期";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateTime)) return dateTime;
+  const d = new Date(dateTime);
+  return Number.isNaN(d.getTime()) ? dateTime.slice(0, 10) : formatDateStr(d);
+}
+
 // 按日期分组
 const groupedEvents = computed(() => {
   const groups: Record<string, CalendarEventResponse[]> = {};
   for (const ev of events.value) {
-    const dateStr = ev.start?.date_time?.slice(0, 10) || "未知日期";
+    const dateStr = eventDateStr(ev.start?.date_time);
     if (!groups[dateStr]) groups[dateStr] = [];
     groups[dateStr].push(ev);
   }

@@ -37,6 +37,13 @@ function formatDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function eventDateStr(dateTime?: string): string {
+  if (!dateTime) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateTime)) return dateTime;
+  const d = new Date(dateTime);
+  return Number.isNaN(d.getTime()) ? dateTime.slice(0, 10) : formatDateStr(d);
+}
+
 function isToday(d: Date): boolean {
   const now = new Date();
   return d.toDateString() === now.toDateString();
@@ -50,7 +57,7 @@ function formatDayHeader(d: Date): string {
 function getEventsForDateAndHour(date: Date, hour: number): CalendarEventResponse[] {
   const dateStr = formatDateStr(date);
   return props.events.filter((ev) => {
-    const evDate = ev.start?.date_time?.slice(0, 10);
+    const evDate = eventDateStr(ev.start?.date_time);
     if (evDate !== dateStr) return false;
     try {
       const evHour = new Date(ev.start!.date_time!).getHours();

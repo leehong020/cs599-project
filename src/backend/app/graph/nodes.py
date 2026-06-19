@@ -188,21 +188,50 @@ def _should_batch_email_send(message: str, state: AssistantState) -> bool:
     return _previous_assistant_requested_batch_send(state)
 
 
+def _previous_assistant_requested_calendar_create(state: AssistantState) -> bool:
+    """判断上一条 assistant 是否刚刚要求用户确认创建日程。"""
+    for message in reversed(state.get("messages", []) or []):
+        role = message.get("role") if isinstance(message, dict) else getattr(message, "type", "")
+        if role not in {"assistant", "ai"}:
+            continue
+        content = str(message.get("content", "") if isinstance(message, dict) else getattr(message, "content", ""))
+        compact = re.sub(r"\s+", "", content)
+        return any(
+            keyword in compact
+            for keyword in (
+                "确认创建",
+                "确认是否创建",
+                "日程草稿",
+                "写入您的GoogleCalendar",
+                "写入GoogleCalendar",
+                "加入日历",
+                "添加到日历",
+            )
+        )
+    return False
+
+
 def _is_calendar_create_confirmation(message: str, state: AssistantState) -> bool:
     """识别日程创建确认。
 
     为避免把“创建一个日程，内容是……”误判成执行，这里只接受较短的确认式
     表达。真正的新建需求仍交给 LLM 调用 `create_calendar_event_draft`。
     """
-    if not state.get("active_calendar_draft") or _has_negative_intent(message):
+    active = state.get("active_calendar_draft")
+    if not isinstance(active, dict) or _has_negative_intent(message):
+        return False
+    content = active.get("content") if isinstance(active.get("content"), dict) else {}
+    if content.get("calendar_action") == "delete":
         return False
     compact = re.sub(r"\s+", "", message)
     if len(compact) > 24:
         return False
-    return any(
+    if any(
         keyword in compact
         for keyword in ("确认创建", "确认日程", "可以创建", "直接创建", "创建日程", "添加到日历", "加入日历")
-    )
+    ):
+        return True
+    return compact in {"确认", "可以", "好", "好的", "行", "没问题"} and _previous_assistant_requested_calendar_create(state)
 
 
 def _is_calendar_delete_confirmation(message: str, state: AssistantState) -> bool:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import Any
 
 from app.graph.agents.runtime import AgentRunResult, run_llm_agent
@@ -27,9 +28,25 @@ from app.graph.tools import create_tools, create_tools_for_agent
 from app.services.llm_client import load_prompt
 
 
+BEIJING_TZ = dt_timezone(timedelta(hours=8))
+
+
 def _append_agent_run(state: AssistantState, result: AgentRunResult) -> list[dict[str, Any]]:
     """把 Agent 运行结果追加到 checkpoint 友好的列表。"""
     return [*state.get("agent_runs", []), result.as_dict()]
+
+
+def _time_context() -> dict[str, str]:
+    """给专业 Agent 的相对日期解析提供稳定北京时间上下文。"""
+    now = datetime.now(BEIJING_TZ)
+    weekday_names = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
+    tomorrow = now + timedelta(days=1)
+    return {
+        "today": now.strftime(f"%Y-%m-%d {weekday_names[now.weekday()]}"),
+        "tomorrow": tomorrow.strftime(f"%Y-%m-%d {weekday_names[tomorrow.weekday()]}"),
+        "current_time": now.strftime("%H:%M"),
+        "timezone": "Asia/Shanghai (UTC+8, 北京时间)",
+    }
 
 
 def _json_context(state: AssistantState, *, audience: str = "agent") -> str:
@@ -42,6 +59,7 @@ def _json_context(state: AssistantState, *, audience: str = "agent") -> str:
     active_calendar = state.get("active_calendar_draft")
     payload = {
         "user_message": state.get("user_message", ""),
+        "current_time_context": _time_context(),
         "current_turn_guidance": {
             "focus": "优先处理 user_message 表达的本轮任务。",
             "old_context_usage": "旧草稿、旧日程和历史消息只在用户明确说继续、修改、确认、删除或引用它们时使用。",

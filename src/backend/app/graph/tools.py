@@ -12,6 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from langchain_core.tools import tool
 from sqlalchemy import text
@@ -438,6 +439,31 @@ def _calendar_missing_fields(payload: dict[str, Any]) -> list[str]:
         if not str(payload.get(key) or "").strip():
             missing.append(key)
     return missing
+
+
+def _timezone_for_calendar(name: str) -> Any:
+    """返回日程时区对象；配置异常时退回北京时间。"""
+    try:
+        return ZoneInfo(name or "Asia/Shanghai")
+    except ZoneInfoNotFoundError:
+        return BEIJING_TZ
+
+
+def _normalize_calendar_datetime(value: str, timezone_name: str) -> str:
+    """把 ISO 时间规范成用户时区，避免 UTC `Z` 让日历按错误日期分组。"""
+    text_value = str(value or "").strip()
+    if not text_value:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(text_value.replace("Z", "+00:00"))
+    except ValueError:
+        return text_value
+    tz = _timezone_for_calendar(timezone_name)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=tz)
+    else:
+        parsed = parsed.astimezone(tz)
+    return parsed.isoformat()
 
 
 def _work_item_status_from_missing(missing: list[str]) -> str:
@@ -1488,8 +1514,8 @@ def create_tools() -> list:
             attendee_list = _resolve_calendar_attendees(attendees, session, user)
             validate_attendee_emails(attendee_list)
 
-            final_start = start_time.strip()
-            final_end = end_time.strip()
+            final_start = _normalize_calendar_datetime(start_time, timezone)
+            final_end = _normalize_calendar_datetime(end_time, timezone)
             if final_start and not final_end and profile.default_meeting_duration_minutes:
                 final_end = (
                     datetime.fromisoformat(final_start.replace("Z", "+00:00"))
@@ -1844,6 +1870,16 @@ def create_tools() -> list:
             content = dict(artifact["content"])
             if conflict_override:
                 content["conflict_override"] = True
+            timezone_name = str(content.get("timezone") or "Asia/Shanghai")
+            normalized_start = _normalize_calendar_datetime(str(content.get("start_time") or ""), timezone_name)
+            normalized_end = _normalize_calendar_datetime(str(content.get("end_time") or ""), timezone_name)
+            content_changed = False
+            if normalized_start and normalized_start != content.get("start_time"):
+                content["start_time"] = normalized_start
+                content_changed = True
+            if normalized_end and normalized_end != content.get("end_time"):
+                content["end_time"] = normalized_end
+                content_changed = True
             missing_fields = _calendar_missing_fields(content)
             if missing_fields:
                 return _fail(
@@ -1865,9 +1901,9 @@ def create_tools() -> list:
                     ),
                 )
 
-            # 如果用户本轮刚刚授权忽略冲突，先把 override 写回 Artifact，保证
-            # Proposal fingerprint 和执行 payload 都包含该安全决策。
-            if conflict_override:
+            # 执行前把用户时区时间和本轮安全决策写回 Artifact，保证 Proposal
+            # fingerprint 和执行 payload 与最终写入 Google Calendar 的内容一致。
+            if conflict_override or content_changed:
                 next_version = _run_async(
                     update_artifact_content(
                         session,

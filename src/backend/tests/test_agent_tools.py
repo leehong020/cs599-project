@@ -551,6 +551,55 @@ class TestRegression:
         assert "evt_123" not in result["response"]
         assert "Google Event ID" not in result["response"]
 
+    def test_short_calendar_confirmation_executes_after_prompt(self):
+        """上一轮已要求确认创建日程时，短回复“确认”也应执行工具。"""
+        import json
+        from app.graph.nodes import agent_node
+
+        calls: list[dict[str, Any]] = []
+
+        class FakeCalendarExecuteTool:
+            name = "execute_calendar_event_draft"
+
+            def invoke(self, args: dict[str, Any]) -> str:
+                calls.append(args)
+                return json.dumps(
+                    {
+                        "ok": True,
+                        "code": "calendar_event_draft_executed",
+                        "message": "日程已创建。",
+                        "data": {
+                            "title": "周会",
+                            "start_time": "2026-06-19T10:00:00+08:00",
+                            "end_time": "2026-06-19T12:00:00+08:00",
+                            "location": "艾特楼",
+                            "external_event_id": "evt_hidden",
+                        },
+                    },
+                    ensure_ascii=False,
+                )
+
+        state = {
+            "messages": [
+                {
+                    "role": "assistant",
+                    "content": "日程草稿已创建。确认无误后，回复“确认创建”即可写入您的 Google Calendar。",
+                }
+            ],
+            "user_message": "确认",
+            "active_calendar_draft": {"artifact_id": "art_calendar", "content": {"title": "周会"}},
+            "route_trace": [],
+        }
+
+        with patch("app.graph.tools.create_tools", return_value=[FakeCalendarExecuteTool()]):
+            with patch("app.graph.nodes.get_chat_model") as mock_model:
+                result = agent_node(state)
+
+        mock_model.assert_not_called()
+        assert calls == [{"conflict_override": False}]
+        assert "日程已成功创建" in result["response"]
+        assert "evt_hidden" not in result["response"]
+
     def test_batch_email_confirmation_uses_batch_tool_before_llm(self):
         """上一轮已提示两封邮件时，确认发送应走批量工具而不是只发 active 草稿。"""
         import json
